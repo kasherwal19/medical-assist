@@ -1,0 +1,1524 @@
+================================================================================
+                EPOCRATES IMAGE API - TECHNICAL DOCUMENTATION
+                         MongoDB Image Storage System
+                              Version 1.0 - 2025
+================================================================================
+
+TABLE OF CONTENTS
+=================
+1. SYSTEM OVERVIEW
+2. ARCHITECTURE DIAGRAM
+3. IMAGE SEEDING PROCESS (MongoDB Upload)
+4. IMAGE FETCHING PROCESS (API Retrieval)
+5. DATA STRUCTURES
+6. API ENDPOINT SPECIFICATION
+7. CODE FLOW STEP-BY-STEP
+8. MONGODB DOCUMENT STRUCTURE
+9. STARTUP SEQUENCE
+10. ERROR HANDLING
+
+================================================================================
+1. SYSTEM OVERVIEW
+================================================================================
+
+This system provides a REST API for medical image management using MongoDB as
+the storage backend. Images are stored as Base64-encoded strings in MongoDB
+documents along with their metadata.
+
+CORE FUNCTIONALITY:
+-------------------
+1. Automatic image seeding from local inventory to MongoDB on first startup
+2. Single API endpoint to filter and retrieve complete image documents
+3. Base64 encoding for database-friendly image storage
+4. Search by medical speciality and disease area
+5. Full MongoDB document return including base64 data and ObjectId
+
+KEY COMPONENTS:
+---------------
+- ImageService: Core service handling seeding, loading, and filtering
+- MongoDB: Database storing images as base64 strings with metadata
+- FastAPI: REST API framework
+- Pydantic: Data validation and schema definition
+
+TECHNOLOGY STACK:
+-----------------
+- Python 3.14
+- FastAPI 0.124.1
+- MongoDB (PyMongo 4.6.0)
+- Pydantic 2.5.0
+- Base64 encoding (Python standard library)
+
+DATABASE:
+---------
+- Database Name: epocrates
+- Collection Name: images
+- Total Images: 24 (one missing from source inventory)
+- Average Image Size: ~66 KB per image (~89,916 chars base64)
+- Total Storage: ~2.3 MB
+
+================================================================================
+2. ARCHITECTURE DIAGRAM
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                      APPLICATION STARTUP                            │
+│                      python src/main.py                             │
+└────────────────────────┬────────────────────────────────────────────┘
+                         │
+                         ▼
+        ┌────────────────────────────────────┐
+        │   FastAPI App Initialization       │
+        └────────────┬───────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────────────┐
+        │   ImageService.__init__()          │
+        │   (services/image_service.py)      │
+        └────────────┬───────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────────────┐
+        │  Get MongoDB Connection            │
+        │  Database: epocrates                │
+        │  Collection: images                │
+        └────────────┬───────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────────────┐
+        │  _ensure_seed_data()               │
+        │  Check if collection is empty      │
+        └────────────┬───────────────────────┘
+                     │
+         ┌───────────┴───────────┐
+         │                       │
+    YES  │ Empty?                │ NO
+         ▼                       ▼
+┌──────────────────────┐  ┌─────────────────────┐
+│ _seed_from_local     │  │ Skip seeding        │
+│ _inventory()         │  │ (data exists)       │
+└──────┬───────────────┘  └─────────┬───────────┘
+       │                            │
+       │ FOR EACH IMAGE             │
+       │                            │
+       ▼                            │
+┌──────────────────────────────┐   │
+│ 1. Read imglibrary.json      │   │
+│    (metadata: id, filename,  │   │
+│     speciality, disease)     │   │
+└──────┬───────────────────────┘   │
+       │                            │
+       ▼                            │
+┌──────────────────────────────┐   │
+│ 2. Read image file from      │   │
+│    imglibrary/ folder        │   │
+│    (binary bytes)            │   │
+└──────┬───────────────────────┘   │
+       │                            │
+       ▼                            │
+┌──────────────────────────────┐   │
+│ 3. Encode to Base64          │   │
+│    (bytes → string)          │   │
+└──────┬───────────────────────┘   │
+       │                            │
+       ▼                            │
+┌──────────────────────────────┐   │
+│ 4. Detect MIME type          │   │
+│    (image/jpeg, image/png)   │   │
+└──────┬───────────────────────┘   │
+       │                            │
+       ▼                            │
+┌──────────────────────────────┐   │
+│ 5. Create MongoDB document   │   │
+│    with all fields           │   │
+└──────┬───────────────────────┘   │
+       │                            │
+       ▼                            │
+┌──────────────────────────────┐   │
+│ 6. Upsert to MongoDB         │   │
+│    (insert or update by id)  │   │
+└──────┬───────────────────────┘   │
+       │                            │
+       └────────────┬───────────────┘
+                    │
+                    ▼
+        ┌────────────────────────────────┐
+        │  _load_images()                │
+        │  Load all docs into memory     │
+        │  Convert ObjectId to string    │
+        │  Add image_url field           │
+        └────────────┬───────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────────┐
+        │  Service Ready                 │
+        │  Images cached in memory       │
+        │  API endpoints available       │
+        └────────────────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────────┐
+        │  API Request Handling          │
+        │  GET /api/images/filter        │
+        └────────────────────────────────┘
+                     │
+         ┌───────────┴───────────┐
+         │                       │
+         ▼                       ▼
+    ┌─────────────┐      ┌──────────────┐
+    │ Filter by   │      │ Filter by    │
+    │ speciality  │      │ disease_area │
+    └─────┬───────┘      └──────┬───────┘
+          │                     │
+          └──────────┬──────────┘
+                     │
+                     ▼
+        ┌────────────────────────────────┐
+        │  Return Matching Documents     │
+        │  (Full MongoDB docs with       │
+        │   _id and base64 data)         │
+        └────────────────────────────────┘
+
+================================================================================
+3. IMAGE SEEDING PROCESS (MongoDB Upload)
+================================================================================
+
+WHEN IT RUNS:
+-------------
+- Automatically on application startup
+- Only if MongoDB collection is empty (count_documents == 0)
+- Skips if images already exist (prevents duplicate uploads)
+
+SOURCE DATA:
+------------
+Location: backend/imglibrary/
+Files:
+  - imglibrary.json (metadata: id, filename, speciality, disease_area)
+  - imglibrary/*.jpg, *.png (actual image files)
+
+STEP-BY-STEP PROCESS:
+----------------------
+
+Step 1: Check Collection
+------------------------
+Code: self.collection.count_documents({})
+- Query MongoDB to count existing documents
+- If count > 0: STOP (images already seeded)
+- If count == 0: CONTINUE to seeding
+
+Step 2: Load Metadata JSON
+---------------------------
+File: backend/imglibrary.json
+Code: 
+  json_path = Path(__file__).parent.parent.parent / "imglibrary.json"
+  with open(json_path, "r", encoding="utf-8") as f:
+      raw_images = json.load(f)
+
+Result: List of 25 image metadata objects
+Example:
+  {
+    "id": "001",
+    "filename": "001.jpg",
+    "speciality": "oncologist",
+    "disease_area": ["cancer", "tumor"]
+  }
+
+Step 3: Process Each Image
+---------------------------
+For each metadata entry:
+
+  3.1: Build Image File Path
+  ---------------------------
+  Code: img_path = images_dir / img["filename"]
+  Example: backend/imglibrary/001.jpg
+
+  3.2: Check File Exists
+  ----------------------
+  Code: if not img_path.exists(): continue
+  Action: Skip missing files (doesn't crash)
+
+  3.3: Read Binary Data
+  ---------------------
+  Code: image_bytes = img_path.read_bytes()
+  Result: Raw binary image data (bytes object)
+  Example size: 45,234 bytes for a typical image
+
+  3.4: Encode to Base64
+  ---------------------
+  Code: image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+  Result: Base64 string representation
+  Example: "/9j/4AAQSkZJRgABAQEAZABkAAD..." (~89,916 chars)
+  Purpose: Make binary data safe for MongoDB text storage
+
+  3.5: Detect MIME Type
+  ---------------------
+  Code: content_type = mimetypes.guess_type(img_path.name)[0]
+  Input: "001.jpg"
+  Output: "image/jpeg"
+  Fallback: "application/octet-stream" if unknown
+
+  3.6: Create MongoDB Document
+  ----------------------------
+  Code:
+    doc = {
+        "id": img.get("id"),                    # "001"
+        "filename": img.get("filename"),        # "001.jpg"
+        "speciality": img.get("speciality"),    # "oncologist"
+        "disease_area": img.get("disease_area"), # ["cancer", "tumor"]
+        "image_base64": image_b64,              # Base64 string
+        "content_type": content_type,           # "image/jpeg"
+        "created_at": datetime.utcnow()         # Timestamp
+    }
+
+  3.7: Upsert to MongoDB
+  ---------------------
+  Code: self.collection.update_one(
+          {"id": doc["id"]}, 
+          {"$set": doc}, 
+          upsert=True
+        )
+  
+  Behavior:
+  - If document with this "id" exists: UPDATE it
+  - If document with this "id" doesn't exist: INSERT it
+  - MongoDB automatically adds "_id" field (ObjectId)
+
+Step 4: Seeding Complete
+-------------------------
+Result:
+- 24 images stored in MongoDB (1 missing: 302.png)
+- Each document contains full base64 image data
+- Each document has MongoDB-generated ObjectId
+- Average document size: ~90 KB per image
+
+VERIFICATION:
+-------------
+After seeding, MongoDB contains:
+  Database: epocrates
+  Collection: images
+  Documents: 24
+  Fields per document: 8
+    - _id (ObjectId, auto-generated by MongoDB)
+    - id (string, custom identifier)
+    - filename (string)
+    - speciality (string)
+    - disease_area (array of strings)
+    - image_base64 (string, ~89,916 chars)
+    - content_type (string)
+    - created_at (datetime)
+
+================================================================================
+4. IMAGE FETCHING PROCESS (API Retrieval)
+================================================================================
+
+ENDPOINT:
+---------
+GET /api/images/filter
+
+PURPOSE:
+--------
+Filter images by speciality and/or disease area, return complete MongoDB
+documents including base64 encoded image data and MongoDB ObjectId.
+
+PARAMETERS:
+-----------
+Query Parameter: speciality (optional, default: "all")
+  Values: "all", "oncologist", "general physician", "pediatrician",
+          "cardiologist", "dermatologist"
+
+Query Parameter: disease_area (optional, default: "all")
+  Values: "all", or any disease name like "cancer", "heart disease", etc.
+
+STEP-BY-STEP PROCESS:
+----------------------
+
+Step 1: API Request Received
+-----------------------------
+Client Request:
+  GET http://localhost:8000/api/images/filter?speciality=oncologist&disease_area=cancer
+
+FastAPI Route Handler:
+  File: src/api/endpoints/image_search.py
+  Function: async def filter_images(speciality, disease_area)
+
+Parameters Extracted:
+  speciality = "oncologist"
+  disease_area = "cancer"
+
+Step 2: Call ImageService.search_images()
+------------------------------------------
+Code:
+  results = image_service.search_images(
+      speciality="oncologist",
+      disease_area="cancer"
+  )
+
+Step 3: Reload Images from MongoDB
+-----------------------------------
+Code: self._load_images()
+
+Why: Ensure latest data (in case external changes to MongoDB)
+
+Process:
+  3.1: Query MongoDB
+  ------------------
+  Code: docs = list(self.collection.find({}))
+  Result: All documents from MongoDB (full documents, no exclusions)
+  Includes: _id, id, filename, speciality, disease_area, 
+            image_base64 (~89,916 chars), content_type, created_at
+
+  3.2: Process Each Document
+  --------------------------
+  For each doc:
+    a) Add image_url field:
+       doc["image_url"] = f"{self.base_url}/api/images/{doc['id']}"
+       Example: "http://localhost:8000/api/images/001"
+
+    b) Convert ObjectId to string:
+       if "_id" in doc:
+           doc["_id"] = str(doc["_id"])
+       Before: ObjectId('694a490ea0323d9d820b8e1a')
+       After:  "694a490ea0323d9d820b8e1a"
+       Reason: ObjectId not JSON-serializable, needs string conversion
+
+  3.3: Store in Memory
+  --------------------
+  Code: self.images = docs
+  Result: List of 24 complete documents cached in memory
+
+Step 4: Filter Images
+---------------------
+Code:
+  spec = "oncologist".strip().lower()
+  disease = "cancer".strip().lower()
+
+For each image in self.images:
+
+  4.1: Check Speciality Match
+  ---------------------------
+  Condition: spec == "all" OR image.speciality == "oncologist"
+  
+  Image 001: speciality = "oncologist" → MATCH
+  Image 101: speciality = "general physician" → NO MATCH (skip)
+
+  4.2: Check Disease Area Match
+  -----------------------------
+  Condition: disease == "all" OR "cancer" in image.disease_area
+
+  Image 001: disease_area = ["cancer", "tumor"] → MATCH
+  Image 003: disease_area = ["cancer", "diagnostics"] → MATCH
+  Image 005: disease_area = ["cancer", "inpatient care"] → MATCH
+
+Step 5: Build Response
+----------------------
+Matched Images: [001, 003, 005] (3 images)
+
+Response Structure:
+{
+    "total": 3,
+    "results": [
+        {
+            "_id": "694a490ea0323d9d820b8e1a",
+            "id": "001",
+            "filename": "001.jpg",
+            "speciality": "oncologist",
+            "disease_area": ["cancer", "tumor"],
+            "image_url": "http://localhost:8000/api/images/001",
+            "image_base64": "/9j/4AAQSkZJR...~89,916 chars...",
+            "content_type": "image/jpeg",
+            "created_at": "2025-12-23T07:47:25.781000"
+        },
+        ... 2 more complete documents
+    ]
+}
+
+Step 6: Pydantic Validation
+----------------------------
+Code:
+  return ImageSearchResponse(
+      total=results["total"],
+      results=results["results"]
+  )
+
+Pydantic Schema: ImageSearchResponse
+  - total: int
+  - results: List[ImageSchema]
+
+Each ImageSchema validates:
+  - mongo_id: MongoDB ObjectId (as string)
+  - id: Custom image ID
+  - filename: Image filename
+  - speciality: Medical speciality
+  - disease_area: List of diseases
+  - image_url: Constructed URL
+  - image_base64: Full base64 data
+  - content_type: MIME type
+  - created_at: Timestamp
+
+Step 7: JSON Serialization
+---------------------------
+FastAPI automatically converts Pydantic models to JSON
+
+Response Headers:
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+  Content-Length: ~270000 (for 3 images with base64)
+
+Response Body: JSON object with total and results array
+
+Step 8: Client Receives Response
+---------------------------------
+Client gets complete MongoDB documents including:
+  ✓ MongoDB ObjectId (as string)
+  ✓ All metadata fields
+  ✓ Full base64 encoded image data
+  ✓ Constructed image URL
+  ✓ MIME type and timestamp
+
+Client can:
+  - Display image: decode base64 and render
+  - Store locally: save base64 or binary
+  - Reference by _id: use MongoDB ObjectId
+  - Share URL: use constructed image_url
+
+================================================================================
+5. DATA STRUCTURES
+================================================================================
+
+IMGLIBRARY.JSON STRUCTURE:
+---------------------------
+Format: JSON array of objects
+Location: backend/imglibrary.json
+
+Example Entry:
+{
+  "id": "001",
+  "filename": "001.jpg",
+  "speciality": "oncologist",
+  "disease_area": ["cancer", "tumor"]
+}
+
+Fields:
+  - id: Unique identifier (e.g., "001", "102", "305")
+  - filename: Image filename in imglibrary/ folder
+  - speciality: Medical specialty (5 categories)
+  - disease_area: Array of associated diseases
+
+Total Entries: 25 (but only 24 files exist)
+
+MONGODB DOCUMENT STRUCTURE:
+----------------------------
+Database: epocrates
+Collection: images
+
+Complete Document Example:
+{
+  "_id": ObjectId("694a490ea0323d9d820b8e1a"),  ← MongoDB auto-generated
+  "id": "001",                                   ← From JSON metadata
+  "filename": "001.jpg",                         ← From JSON metadata
+  "speciality": "oncologist",                    ← From JSON metadata
+  "disease_area": ["cancer", "tumor"],           ← From JSON metadata
+  "image_base64": "/9j/4AAQSkZJR...",           ← Encoded from file
+  "content_type": "image/jpeg",                  ← Detected from filename
+  "created_at": ISODate("2025-12-23T07:47:25Z") ← Generated on insert
+}
+
+Field Details:
+
+  _id (ObjectId, 24 hex chars when stringified)
+    Purpose: MongoDB primary key
+    Generated: Automatically by MongoDB on insert
+    Example: "694a490ea0323d9d820b8e1a"
+    Usage: Unique document identifier
+
+  id (string)
+    Purpose: Custom image identifier
+    Source: imglibrary.json
+    Example: "001", "102", "305"
+    Usage: Human-readable reference
+
+  filename (string)
+    Purpose: Original filename
+    Source: imglibrary.json
+    Example: "001.jpg", "004.png"
+    Usage: File reference
+
+  speciality (string)
+    Purpose: Medical specialty category
+    Source: imglibrary.json
+    Values: "oncologist", "general physician", "pediatrician",
+            "cardiologist", "dermatologist"
+    Usage: Filtering by specialty
+
+  disease_area (array of strings)
+    Purpose: Associated diseases/conditions
+    Source: imglibrary.json
+    Example: ["cancer", "tumor"], ["heart disease", "arrhythmia"]
+    Usage: Filtering by disease
+
+  image_base64 (string, ~89,916 chars average)
+    Purpose: Base64 encoded image data
+    Source: Encoded from image file
+    Example: "/9j/4AAQSkZJRgABAQEAZABkAAD..."
+    Size: ~66 KB average (40-100 KB range)
+    Usage: Store binary image in text format
+
+  content_type (string)
+    Purpose: MIME type for image
+    Source: Detected from filename extension
+    Values: "image/jpeg", "image/png"
+    Usage: Content-Type header when serving image
+
+  created_at (datetime)
+    Purpose: Document creation timestamp
+    Source: Generated on insert (datetime.utcnow())
+    Example: "2025-12-23T07:47:25.781000"
+    Usage: Track when image was added
+
+API RESPONSE STRUCTURE:
+-----------------------
+HTTP Response:
+
+Headers:
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+  Content-Length: [varies based on results]
+
+Body (JSON):
+{
+  "total": <number>,        ← Count of matching images
+  "results": [              ← Array of complete MongoDB documents
+    {
+      "_id": "<string>",              ← ObjectId as string
+      "id": "<string>",               ← Custom ID
+      "filename": "<string>",         ← Filename
+      "speciality": "<string>",       ← Specialty
+      "disease_area": ["<string>"],   ← Diseases array
+      "image_url": "<string>",        ← Constructed URL
+      "image_base64": "<string>",     ← Full base64 data
+      "content_type": "<string>",     ← MIME type
+      "created_at": "<datetime>"      ← Timestamp
+    },
+    ... more documents
+  ]
+}
+
+Response Size Estimates:
+  - All 24 images: ~2.3 MB JSON
+  - Per image: ~66 KB average
+  - Metadata only (no base64): ~500 bytes per image
+
+PYDANTIC SCHEMAS:
+-----------------
+File: src/schema/image.py
+
+ImageSchema:
+  mongo_id: Optional[Any] = Field(None, alias="_id")
+  id: str
+  filename: str
+  speciality: str
+  disease_area: List[str]
+  image_url: str
+  image_base64: str
+  content_type: str
+  created_at: Optional[datetime] = None
+
+  Config:
+    from_attributes = True
+    populate_by_name = True  # Allows both "_id" and "mongo_id"
+
+ImageSearchResponse:
+  total: int
+  results: List[ImageSchema]
+
+ImageSearchRequest:
+  speciality: Optional[str] = "all"
+  disease_area: Optional[str] = "all"
+
+================================================================================
+6. API ENDPOINT SPECIFICATION
+================================================================================
+
+ENDPOINT: Filter Images
+========================
+
+URL: GET /api/images/filter
+
+Description:
+Filter images by medical speciality and/or disease area. Returns complete
+MongoDB documents including base64 encoded image data and MongoDB ObjectId.
+
+Parameters:
+-----------
+
+Query Parameter: speciality (optional)
+  Type: string
+  Default: "all"
+  Values:
+    - "all" (returns all specialities)
+    - "oncologist"
+    - "general physician"
+    - "pediatrician"
+    - "cardiologist"
+    - "dermatologist"
+  Case: Insensitive
+  Example: ?speciality=oncologist
+
+Query Parameter: disease_area (optional)
+  Type: string
+  Default: "all"
+  Values:
+    - "all" (returns all diseases)
+    - Any disease name (e.g., "cancer", "heart disease", "tumor")
+  Case: Insensitive
+  Example: ?disease_area=cancer
+
+Request Examples:
+-----------------
+
+1. Get all images:
+   GET http://localhost:8000/api/images/filter
+
+2. Get all oncologist images:
+   GET http://localhost:8000/api/images/filter?speciality=oncologist
+
+3. Get all cancer-related images:
+   GET http://localhost:8000/api/images/filter?disease_area=cancer
+
+4. Get oncologist cancer images:
+   GET http://localhost:8000/api/images/filter?speciality=oncologist&disease_area=cancer
+
+5. Using curl:
+   curl "http://localhost:8000/api/images/filter?speciality=oncologist"
+
+Success Response (200 OK):
+---------------------------
+
+Content-Type: application/json
+
+Body:
+{
+  "total": 3,
+  "results": [
+    {
+      "_id": "694a490ea0323d9d820b8e1a",
+      "id": "001",
+      "filename": "001.jpg",
+      "speciality": "oncologist",
+      "disease_area": ["cancer", "tumor"],
+      "image_url": "http://localhost:8000/api/images/001",
+      "image_base64": "/9j/4AAQSkZJRgABAQEAZABkAAD/...(~89,916 chars).../Z",
+      "content_type": "image/jpeg",
+      "created_at": "2025-12-23T07:47:25.781000"
+    },
+    {
+      "_id": "694a490ea0323d9d820b8e1b",
+      "id": "003",
+      "filename": "003.jpg",
+      "speciality": "oncologist",
+      "disease_area": ["cancer", "diagnostics"],
+      "image_url": "http://localhost:8000/api/images/003",
+      "image_base64": "/9j/4AAQSkZJRgABAQEAZABkAAD/...(~89,916 chars).../Z",
+      "content_type": "image/jpeg",
+      "created_at": "2025-12-23T07:47:25.782000"
+    },
+    {
+      "_id": "694a490ea0323d9d820b8e1c",
+      "id": "005",
+      "filename": "005.jpg",
+      "speciality": "oncologist",
+      "disease_area": ["cancer", "inpatient care"],
+      "image_url": "http://localhost:8000/api/images/005",
+      "image_base64": "/9j/4AAQSkZJRgABAQEAZABkAAD/...(~89,916 chars).../Z",
+      "content_type": "image/jpeg",
+      "created_at": "2025-12-23T07:47:25.783000"
+    }
+  ]
+}
+
+No Results Response (200 OK):
+------------------------------
+
+When no images match the filter criteria:
+
+{
+  "total": 0,
+  "results": []
+}
+
+Note: This is still HTTP 200 (success), not 404. Empty results are valid.
+
+Error Responses:
+----------------
+
+500 Internal Server Error:
+  Occurs when database connection fails or internal error
+
+Content-Type: application/json
+
+{
+  "detail": "Internal server error"
+}
+
+Response Headers:
+-----------------
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: [size in bytes]
+
+Performance Characteristics:
+----------------------------
+
+Response Time:
+  - Filter operation: 50-100 ms
+  - Includes MongoDB query and in-memory filtering
+  - Base64 data already cached in memory
+
+Response Size:
+  - All 24 images: ~2.3 MB
+  - Single image: ~66 KB average
+  - 10 images: ~660 KB
+
+Caching:
+  - Images loaded into memory on startup
+  - Reloaded on each filter request (ensures freshness)
+  - No external cache layer
+
+================================================================================
+7. CODE FLOW STEP-BY-STEP
+================================================================================
+
+STARTUP FLOW:
+-------------
+
+1. Application Start
+   File: src/main.py
+   Action: Start FastAPI application
+   Command: python src/main.py
+
+2. Import ImageService
+   File: src/services/image_service.py
+   Action: Module import triggers class instantiation
+   Code: image_service = ImageService()
+
+3. ImageService.__init__()
+   Actions:
+   a) Initialize empty images list
+   b) Connect to MongoDB
+      - Database: epocrates
+      - Collection: images
+   c) Call _ensure_seed_data()
+   d) Call _load_images()
+
+4. _ensure_seed_data()
+   Check: self.collection.count_documents({})
+   - If > 0: Skip seeding (data exists)
+   - If == 0: Call _seed_from_local_inventory()
+
+5. _seed_from_local_inventory() [If needed]
+   Steps:
+   a) Load imglibrary.json
+   b) For each image entry:
+      - Build file path
+      - Check if file exists
+      - Read binary data
+      - Encode to base64
+      - Detect MIME type
+      - Create MongoDB document
+      - Upsert to collection
+   Result: 24 images in MongoDB
+
+6. _load_images()
+   Steps:
+   a) Query all documents: self.collection.find({})
+   b) For each document:
+      - Add image_url field
+      - Convert ObjectId to string
+   c) Store in self.images (memory cache)
+   Result: 24 complete documents in memory
+
+7. Application Ready
+   State:
+   - 24 images in MongoDB
+   - 24 documents cached in memory
+   - API endpoint available
+
+API REQUEST FLOW:
+-----------------
+
+Example: GET /api/images/filter?speciality=oncologist&disease_area=cancer
+
+1. Request Received
+   FastAPI: Route matching
+   File: src/api/endpoints/image_search.py
+   Function: filter_images()
+
+2. Extract Parameters
+   speciality = "oncologist"
+   disease_area = "cancer"
+
+3. Call search_images()
+   Code: image_service.search_images(
+           speciality="oncologist",
+           disease_area="cancer"
+         )
+
+4. Normalize Parameters
+   spec = "oncologist".strip().lower()
+   disease = "cancer".strip().lower()
+
+5. Reload Images
+   Code: self._load_images()
+   Result: Fresh data from MongoDB
+   Documents: 24 complete docs with base64
+
+6. Filter Loop
+   For each image in self.images:
+   
+   Check speciality:
+     - If spec == "all": Continue
+     - If image.speciality == "oncologist": Continue
+     - Else: Skip this image
+   
+   Check disease_area:
+     - If disease == "all": Include
+     - If "cancer" in image.disease_area: Include
+     - Else: Skip this image
+
+7. Collect Results
+   Matched: [001, 003, 005]
+   Total: 3
+
+8. Build Response Dict
+   {
+     "total": 3,
+     "results": [doc_001, doc_003, doc_005]
+   }
+
+9. Pydantic Validation
+   Convert to ImageSearchResponse
+   Validate each ImageSchema
+
+10. JSON Serialization
+    FastAPI converts to JSON
+    ObjectId already converted to string
+
+11. HTTP Response
+    Status: 200 OK
+    Content-Type: application/json
+    Body: Complete JSON with base64 data
+
+12. Client Receives
+    Parse JSON
+    Access base64 data
+    Display or process images
+
+FILTERING LOGIC DETAIL:
+-----------------------
+
+Pseudocode:
+```
+function matches(image, speciality, disease_area):
+    # Check speciality
+    if speciality != "all":
+        if image.speciality.lower() != speciality.lower():
+            return False
+    
+    # Check disease area
+    if disease_area == "all":
+        return True
+    
+    # Check if disease in disease_area array
+    for disease in image.disease_area:
+        if disease.lower() == disease_area.lower():
+            return True
+    
+    return False
+```
+
+Examples:
+---------
+
+Filter: speciality="oncologist", disease_area="all"
+  Image 001 (oncologist, cancer): MATCH ✓
+  Image 002 (oncologist, genetics): MATCH ✓
+  Image 101 (general physician, heart): NO MATCH ✗
+  Result: All 5 oncologist images
+
+Filter: speciality="all", disease_area="cancer"
+  Image 001 (oncologist, cancer): MATCH ✓
+  Image 101 (general physician, heart): NO MATCH ✗
+  Result: All images with "cancer" in disease_area
+
+Filter: speciality="oncologist", disease_area="cancer"
+  Image 001 (oncologist, cancer): MATCH ✓
+  Image 002 (oncologist, genetics): NO MATCH ✗
+  Image 101 (general physician, heart): NO MATCH ✗
+  Result: Only oncologist images with "cancer"
+
+================================================================================
+8. MONGODB DOCUMENT STRUCTURE
+================================================================================
+
+COLLECTION OVERVIEW:
+--------------------
+Database: epocrates
+Collection: images
+Document Count: 24
+Average Document Size: ~90 KB
+Total Collection Size: ~2.3 MB
+
+DOCUMENT FIELDS:
+----------------
+
+_id (ObjectId)
+  Type: MongoDB ObjectId
+  Generated: Automatically by MongoDB
+  Unique: Yes (primary key)
+  Example: ObjectId("694a490ea0323d9d820b8e1a")
+  String Form: "694a490ea0323d9d820b8e1a" (24 hex chars)
+  Indexed: Yes (automatic)
+
+id (String)
+  Type: String
+  Source: imglibrary.json
+  Unique: Yes (by application logic)
+  Example: "001", "102", "305"
+  Pattern: 3 digits
+  Indexed: No (but should be for performance)
+
+filename (String)
+  Type: String
+  Source: imglibrary.json
+  Example: "001.jpg", "004.png", "102.png"
+  Pattern: <id>.<extension>
+  Extensions: .jpg, .png
+
+speciality (String)
+  Type: String
+  Source: imglibrary.json
+  Values:
+    - "oncologist" (5 images)
+    - "general physician" (5 images)
+    - "pediatrician" (5 images)
+    - "cardiologist" (4 images, 302.png missing)
+    - "dermatologist" (5 images)
+  Case: Lowercase
+  Total: 5 categories
+
+disease_area (Array of Strings)
+  Type: Array
+  Source: imglibrary.json
+  Element Type: String
+  Example: ["cancer", "tumor"], ["heart disease"]
+  Common Values:
+    - "cancer"
+    - "tumor"
+    - "genetics"
+    - "diagnostics"
+    - "heart disease"
+    - "arrhythmia"
+    - "cardiac imaging"
+  Count: 1-2 elements per array typically
+
+image_base64 (String)
+  Type: String (Base64 encoded)
+  Source: Encoded from image file
+  Length: ~89,916 chars average (40,000-150,000 range)
+  Encoding: Base64 (RFC 4648)
+  Original: Binary image data
+  Example Start: "/9j/4AAQSkZJRgABAQEAZABkAAD/..."
+  Size Overhead: ~33% larger than original binary
+  Purpose: Store binary data in text format
+
+content_type (String)
+  Type: String (MIME type)
+  Source: Detected from filename extension
+  Values:
+    - "image/jpeg" (most images)
+    - "image/png" (some images)
+  Standard: IANA Media Types
+  Usage: HTTP Content-Type header
+
+created_at (DateTime)
+  Type: ISODate
+  Source: Generated on insert
+  Function: datetime.utcnow()
+  Format: ISO 8601
+  Example: ISODate("2025-12-23T07:47:25.781Z")
+  Timezone: UTC
+  Precision: Microseconds
+
+SAMPLE DOCUMENTS:
+-----------------
+
+Document 1 (Oncologist - Cancer):
+{
+  "_id": ObjectId("694a490ea0323d9d820b8e1a"),
+  "id": "001",
+  "filename": "001.jpg",
+  "speciality": "oncologist",
+  "disease_area": ["cancer", "tumor"],
+  "image_base64": "/9j/4AAQSkZJRgABAQEAZABkAAD/2wBDAAgGBgcGBQgHBwcJ...",
+  "content_type": "image/jpeg",
+  "created_at": ISODate("2025-12-23T07:47:25.781Z")
+}
+
+Document 2 (General Physician - Heart Disease):
+{
+  "_id": ObjectId("694a490ea0323d9d820b8e2a"),
+  "id": "101",
+  "filename": "101.jpg",
+  "speciality": "general physician",
+  "disease_area": ["heart disease", "arrhythmia"],
+  "image_base64": "/9j/4AAQSkZJRgABAQEAZABkAAD/2wBDAAgGBgcGBQgHBwcJ...",
+  "content_type": "image/jpeg",
+  "created_at": ISODate("2025-12-23T07:47:25.825Z")
+}
+
+Document 3 (Pediatrician - Diagnosis):
+{
+  "_id": ObjectId("694a490ea0323d9d820b8e3a"),
+  "id": "201",
+  "filename": "201.jpg",
+  "speciality": "pediatrician",
+  "disease_area": ["vaccination", "pediatric care"],
+  "image_base64": "/9j/4AAQSkZJRgABAQEAZABkAAD/2wBDAAgGBgcGBQgHBwcJ...",
+  "content_type": "image/jpeg",
+  "created_at": ISODate("2025-12-23T07:47:25.869Z")
+}
+
+INDEXES:
+--------
+
+Default Index:
+  Field: _id
+  Type: Unique
+  Created: Automatically by MongoDB
+
+Recommended Additional Indexes:
+  1. Index on "id" field:
+     db.images.createIndex({"id": 1}, {unique: true})
+     Reason: Fast lookup by custom ID
+
+  2. Index on "speciality":
+     db.images.createIndex({"speciality": 1})
+     Reason: Common filter parameter
+
+  3. Index on "disease_area":
+     db.images.createIndex({"disease_area": 1})
+     Reason: Array field used in filtering
+
+QUERIES:
+--------
+
+Find all documents:
+  db.images.find({})
+  Returns: 24 documents
+
+Find by custom ID:
+  db.images.findOne({"id": "001"})
+  Returns: 1 document
+
+Find by MongoDB ObjectId:
+  db.images.findOne({"_id": ObjectId("694a490ea0323d9d820b8e1a")})
+  Returns: 1 document
+
+Find by speciality:
+  db.images.find({"speciality": "oncologist"})
+  Returns: 5 documents
+
+Find by disease:
+  db.images.find({"disease_area": "cancer"})
+  Returns: Multiple documents (array contains "cancer")
+
+Count documents:
+  db.images.countDocuments({})
+  Returns: 24
+
+STORAGE DETAILS:
+----------------
+
+Total Documents: 24
+Average Document Size: ~90 KB
+Total Collection Size: ~2.3 MB
+Base64 Overhead: ~33% (base64 is 1.33x larger than binary)
+Original Images Total: ~1.7 MB (estimated)
+
+Breakdown by Speciality:
+  - Oncologist: 5 docs (~450 KB)
+  - General Physician: 5 docs (~450 KB)
+  - Pediatrician: 5 docs (~450 KB)
+  - Cardiologist: 4 docs (~360 KB, missing 302.png)
+  - Dermatologist: 5 docs (~450 KB)
+
+================================================================================
+9. STARTUP SEQUENCE
+================================================================================
+
+DETAILED STARTUP TIMELINE:
+---------------------------
+
+T=0ms: Application Launch
+  Command: python src/main.py
+  Action: Python interpreter starts
+
+T=50ms: Import Modules
+  Imports:
+    - fastapi
+    - uvicorn
+    - pydantic
+    - pymongo
+    - custom modules (routes, services, etc.)
+
+T=100ms: Import ImageService Module
+  File: src/services/image_service.py
+  Action: Module-level code executes
+  Trigger: image_service = ImageService()
+
+T=150ms: ImageService.__init__() Starts
+  Actions:
+    1. Initialize self.images = []
+    2. Store base_url
+    3. Call get_database_connection()
+
+T=200ms: MongoDB Connection
+  Function: get_database_connection()
+  File: src/utils/database.py
+  Action: Connect to MongoDB
+  Connection String: From environment variable
+  Result: MongoClient instance
+
+T=250ms: Get Collection Reference
+  Database: epocrates
+  Collection: images
+  Code: self.collection = client[db_name][collection_name]
+
+T=300ms: _ensure_seed_data() Called
+  Action: Check if seeding needed
+  Query: self.collection.count_documents({})
+
+T=350ms: Count Documents Result
+  Case 1: count > 0
+    Action: Skip seeding, return immediately
+    Time: +0ms
+    Next: Jump to _load_images()
+
+  Case 2: count == 0 (FIRST STARTUP)
+    Action: Call _seed_from_local_inventory()
+    Time: +4000ms (4 seconds for 24 images)
+    Continue below...
+
+T=400ms: Load imglibrary.json
+  File: backend/imglibrary.json
+  Action: Parse JSON
+  Result: List of 25 image metadata objects
+
+T=450ms: Start Image Loop
+  Total: 25 iterations
+  Processing: ~150ms per image
+  Total Time: ~3750ms
+
+PER IMAGE (150ms each):
+  T+0ms: Build file path
+  T+10ms: Check file exists
+  T+20ms: Read binary data (~50 KB)
+  T+70ms: Base64 encode
+  T+120ms: Detect MIME type
+  T+130ms: Create document object
+  T+140ms: Upsert to MongoDB
+  T+150ms: Next image
+
+T=4200ms: Seeding Complete
+  Result: 24 images in MongoDB (1 skipped: 302.png)
+  Total Documents: 24
+
+T=4250ms: _load_images() Called
+  Action: Load all documents into memory
+
+T=4300ms: Query MongoDB
+  Code: self.collection.find({})
+  Result: Cursor with 24 documents
+
+T=4350ms: Process Documents
+  Actions per document:
+    1. Add image_url field
+    2. Convert ObjectId to string
+  Total: 24 documents × 2ms = 48ms
+
+T=4400ms: Store in Memory
+  Code: self.images = docs
+  Result: 24 complete documents cached
+  Memory Usage: ~1.6 MB
+
+T=4450ms: ImageService Initialization Complete
+  State:
+    - MongoDB connection: Active
+    - Collection: images (24 documents)
+    - Memory cache: 24 documents with base64
+    - Service ready: Yes
+
+T=4500ms: FastAPI App Configuration
+  Actions:
+    - Register routes
+    - Configure middleware
+    - Setup CORS
+    - Configure logging
+
+T=4600ms: Uvicorn Server Start
+  Action: Bind to port 8000
+  Host: 0.0.0.0 (all interfaces)
+  Port: 8000
+
+T=4700ms: Application Ready
+  Output: "Uvicorn running on http://0.0.0.0:8000"
+  State: Accepting requests
+
+SUBSEQUENT STARTUPS:
+--------------------
+
+T=0ms: Application Launch
+
+T=100ms: Import ImageService
+
+T=150ms: ImageService.__init__() Starts
+
+T=200ms: MongoDB Connection
+
+T=250ms: Get Collection Reference
+
+T=300ms: _ensure_seed_data() Called
+
+T=350ms: Count Documents → count=24
+  Action: Skip seeding (data exists)
+  Time Saved: ~4000ms
+
+T=400ms: _load_images() Called
+
+T=450ms: Query MongoDB (24 documents)
+
+T=500ms: Process Documents
+
+T=550ms: Store in Memory
+
+T=600ms: ImageService Ready
+  Total Time: 600ms (vs 4700ms first startup)
+
+T=700ms: Application Ready
+  Total Startup: ~700ms
+
+STARTUP SUMMARY:
+----------------
+
+First Startup (with seeding):
+  - Total Time: ~4.7 seconds
+  - Seeding: ~4 seconds
+  - Other: ~0.7 seconds
+
+Subsequent Startups (no seeding):
+  - Total Time: ~0.7 seconds
+  - No seeding needed
+  - Fast loading from MongoDB
+
+Critical Path:
+  1. Connect to MongoDB (200ms)
+  2. Check seed status (150ms)
+  3. Seed if needed (4000ms or 0ms)
+  4. Load images (200ms)
+  5. Start server (150ms)
+
+================================================================================
+10. ERROR HANDLING
+================================================================================
+
+SEEDING ERRORS:
+---------------
+
+Error: imglibrary.json Not Found
+  Trigger: json_path.exists() returns False
+  Exception: FileNotFoundError
+  Message: "imglibrary.json not found at {path}"
+  Impact: Application fails to start
+  Solution: Verify file exists at backend/imglibrary.json
+
+Error: imglibrary/ Directory Not Found
+  Trigger: images_dir.exists() returns False
+  Exception: FileNotFoundError
+  Message: "imglibrary directory not found at {path}"
+  Impact: Application fails to start
+  Solution: Create backend/imglibrary/ folder
+
+Error: Image File Missing
+  Trigger: img_path.exists() returns False
+  Behavior: Skip this image, continue with others
+  Impact: Fewer images in database
+  Example: 302.png missing (24 images instead of 25)
+  Solution: Add missing files to imglibrary/ folder
+
+Error: JSON Parse Error
+  Trigger: Invalid JSON syntax in imglibrary.json
+  Exception: json.JSONDecodeError
+  Impact: Application fails to start
+  Solution: Fix JSON syntax, validate with JSON linter
+
+Error: MongoDB Connection Failed
+  Trigger: Cannot connect to MongoDB
+  Exception: pymongo.errors.ConnectionFailure
+  Message: Varies (network error, auth failure, etc.)
+  Impact: Application fails to start
+  Solution:
+    - Check MongoDB is running
+    - Verify connection string
+    - Check network connectivity
+    - Verify credentials
+
+Error: MongoDB Upsert Failed
+  Trigger: Database write error
+  Exception: pymongo.errors.PyMongoError
+  Impact: Image not saved to database
+  Behavior: Error logged, continues with next image
+  Solution: Check MongoDB logs, verify permissions
+
+API ERRORS:
+-----------
+
+Error: MongoDB Query Failed
+  Trigger: Database connection lost during query
+  Exception: pymongo.errors.PyMongoError
+  HTTP Status: 500 Internal Server Error
+  Response: {"detail": "Internal server error"}
+  Solution: Reconnect to MongoDB, retry request
+
+Error: Invalid Query Parameters
+  Trigger: Non-string parameters (handled by FastAPI)
+  HTTP Status: 422 Unprocessable Entity
+  Response: Validation error details
+  Example: ?speciality=123 (unexpected type)
+  Solution: Use valid string values
+
+Error: No Results Found
+  Trigger: Filter matches no documents
+  Behavior: Normal success response
+  HTTP Status: 200 OK
+  Response: {"total": 0, "results": []}
+  Note: This is NOT an error, it's valid empty result
+
+OBJECTID CONVERSION ERRORS:
+----------------------------
+
+Error: ObjectId Not Stringifiable
+  Trigger: ObjectId conversion fails
+  Behavior: Leave as ObjectId (will cause JSON error)
+  Impact: JSON serialization fails
+  Prevention: Always convert to string
+  Code: str(doc["_id"])
+
+Error: JSON Serialization Failed
+  Trigger: Non-serializable object in response
+  Exception: TypeError
+  HTTP Status: 500 Internal Server Error
+  Cause: ObjectId not converted to string
+  Solution: Ensure _id conversion in _load_images()
+
+VALIDATION ERRORS:
+------------------
+
+Error: Pydantic Validation Failed
+  Trigger: Document doesn't match ImageSchema
+  Exception: pydantic.ValidationError
+  Cause: Missing required field or wrong type
+  Impact: 500 Internal Server Error
+  Solution: Verify MongoDB documents have all fields
+
+Error: Missing Required Field
+  Example: Document missing "filename"
+  Behavior: Pydantic raises ValidationError
+  Prevention: Ensure seeding creates complete documents
+  Solution: Check _seed_from_local_inventory() logic
+
+RUNTIME ERRORS:
+---------------
+
+Error: Memory Overflow
+  Trigger: Too many large images in memory
+  Impact: Application crash or slow performance
+  Current: 24 images ~1.6 MB (not an issue)
+  Threshold: >1000 images or >100 MB
+  Solution: Implement pagination, don't cache base64
+
+Error: Database Out of Space
+  Trigger: MongoDB storage limit reached
+  Exception: pymongo.errors.DiskFullError
+  Impact: Cannot insert new images
+  Solution: Increase storage or delete old images
+
+Error: Port Already in Use
+  Trigger: Another process using port 8000
+  Exception: OSError
+  Impact: Server won't start
+  Solution: Kill other process or use different port
+
+GRACEFUL DEGRADATION:
+---------------------
+
+Missing Image Files:
+  Behavior: Skip during seeding
+  Result: Fewer images available
+  User Impact: Some IDs return no results
+  Example: 302.png missing (4 cardiologist images instead of 5)
+
+MongoDB Temporarily Unavailable:
+  Behavior: Retry connection
+  Fallback: None (requires database)
+  User Impact: API unavailable
+
+Empty Database:
+  Behavior: Seed on startup
+  Time: ~4 seconds
+  User Impact: Longer first startup
+
+LOGGING:
+--------
+
+Recommended Log Entries:
+  - [INFO] MongoDB connected
+  - [INFO] Found {count} existing images
+  - [INFO] Seeding {count} images
+  - [INFO] Seeded image {id}
+  - [WARN] Skipped missing file: {filename}
+  - [ERROR] MongoDB connection failed: {error}
+  - [ERROR] Failed to seed image {id}: {error}
+  - [INFO] Loaded {count} images into memory
+  - [INFO] API ready on port 8000
+
+ERROR RECOVERY:
+---------------
+
+Scenario: MongoDB Connection Lost During Runtime
+  Detection: pymongo.errors.AutoReconnect
+  Action: PyMongo automatically reconnects
+  User Impact: Request may fail, retry succeeds
+
+Scenario: Corrupted Document
+  Detection: Pydantic validation error
+  Action: Skip this document
+  User Impact: One image missing from results
+  Solution: Fix or delete corrupted document
+
+Scenario: Partial Seeding
+  Cause: Crash during seeding
+  Result: Some images in database
+  Recovery: Restart application
+  Behavior: Upsert ensures no duplicates
+
+================================================================================
+
+END OF DOCUMENTATION
+
+For questions, refer to:
+- Code: src/services/image_service.py
+- API: src/api/endpoints/image_search.py
+- Schema: src/schema/image.py
+- Database: MongoDB collection "epocrates.images"
+
+================================================================================

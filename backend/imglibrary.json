@@ -1,0 +1,152 @@
+[
+  {
+    "id": "001",
+    "filename": "001.jpg",
+    "speciality": "oncologist",
+    "disease_area": ["cancer", "tumor"]
+  },
+  {
+    "id": "002",
+    "filename": "002.jpg",
+    "speciality": "oncologist",
+    "disease_area": ["cancer", "genetics"]
+  },
+  {
+    "id": "003",
+    "filename": "003.jpg",
+    "speciality": "oncologist",
+    "disease_area": ["cancer", "diagnostics"]
+  },
+  {
+    "id": "004",
+    "filename": "004.png",
+    "speciality": "oncologist",
+    "disease_area": ["cancer", "tumor"]
+  },
+  {
+    "id": "005",
+    "filename": "005.jpg",
+    "speciality": "oncologist",
+    "disease_area": ["cancer", "inpatient care"]
+  },
+  {
+    "id": "101",
+    "filename": "101.jpg",
+    "speciality": "general physician",
+    "disease_area": ["heart disease", "arrhythmia"]
+  },
+  {
+    "id": "102",
+    "filename": "102.png",
+    "speciality": "general physician",
+    "disease_area": ["heart disease"]
+  },
+  {
+    "id": "103",
+    "filename": "103.jpg",
+    "speciality": "general physician",
+    "disease_area": ["heart disease", "cardiac imaging"]
+  },
+  {
+    "id": "104",
+    "filename": "104.jpg",
+    "speciality": "general physician",
+    "disease_area": ["heart disease"]
+  },
+  {
+    "id": "105",
+    "filename": "105.jpg",
+    "speciality": "general physician",
+    "disease_area": ["hypertension"]
+  },
+  {
+    "id": "201",
+    "filename": "201.jpg",
+    "speciality": "pediatrician",
+    "disease_area": ["child health", "general pediatrics"]
+  },
+  {
+    "id": "202",
+    "filename": "202.jpg",
+    "speciality": "pediatrician",
+    "disease_area": ["immunization", "infection prevention"]
+  },
+  {
+    "id": "203",
+    "filename": "203.jpg",
+    "speciality": "pediatrician",
+    "disease_area": ["child health", "parent counseling"]
+  },
+  {
+    "id": "204",
+    "filename": "204.jpg",
+    "speciality": "pediatrician",
+    "disease_area": ["child health", "inpatient care"]
+  },
+  {
+    "id": "205",
+    "filename": "205.jpg",
+    "speciality": "pediatrician",
+    "disease_area": ["development", "child health"]
+  },
+  {
+    "id": "301",
+    "filename": "301.jpg",
+    "speciality": "general physician",
+    "disease_area": ["pharmacy", "medication"]
+  },
+  {
+    "id": "302",
+    "filename": "302.png",
+    "speciality": "general physician",
+    "disease_area": ["pharmacy", "medication"]
+  },
+  {
+    "id": "303",
+    "filename": "303.jpg",
+    "speciality": "general physician",
+    "disease_area": ["pharmacy", "medication"]
+  },
+  {
+    "id": "304",
+    "filename": "304.JPG",
+    "speciality": "general physician",
+    "disease_area": ["pharmacy", "inventory"]
+  },
+  {
+    "id": "305",
+    "filename": "305.jpg",
+    "speciality": "general physician",
+    "disease_area": ["pharmacy", "compounding"]
+  },
+  {
+    "id": "401",
+    "filename": "401.png",
+    "speciality": "general physician",
+    "disease_area": ["infectious diseases", "virus"]
+  },
+  {
+    "id": "402",
+    "filename": "402.jpg",
+    "speciality": "general physician",
+    "disease_area": ["infectious diseases", "biosafety"]
+  },
+  {
+    "id": "403",
+    "filename": "403.jpg",
+    "speciality": "general physician",
+    "disease_area": ["infectious diseases", "covid"]
+  },
+  {
+    "id": "404",
+    "filename": "404.jpg",
+    "speciality": "general physician",
+    "disease_area": ["infectious diseases", "bacteria"]
+  },
+  {
+    "id": "405",
+    "filename": "405.jpg",
+    "speciality": "general physician",
+    "disease_area": ["infectious diseases", "prevention"]
+  }
+]

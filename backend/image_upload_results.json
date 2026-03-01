@@ -1,0 +1,277 @@
+{
+  "uploaded": [
+    {
+      "id": "001",
+      "filename": "001.jpg",
+      "blob_key": "Epocrates/images/001.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/001.jpg?se=2035-12-27T12%3A01%3A36Z&sp=r&sv=2025-11-05&sr=b&sig=I0kcx7iT05qjp1PAQ8CTFW3ImpCbYGd7GQu4b9rHNss%3D",
+      "speciality": "oncologist",
+      "disease_area": [
+        "cancer",
+        "tumor"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "002",
+      "filename": "002.jpg",
+      "blob_key": "Epocrates/images/002.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/002.jpg?se=2035-12-27T12%3A01%3A37Z&sp=r&sv=2025-11-05&sr=b&sig=Su7ab0u9W%2BHJAweC9PTwaa4zXBd1Rjanke8sY3d1Ohg%3D",
+      "speciality": "oncologist",
+      "disease_area": [
+        "cancer",
+        "genetics"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "003",
+      "filename": "003.jpg",
+      "blob_key": "Epocrates/images/003.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/003.jpg?se=2035-12-27T12%3A01%3A39Z&sp=r&sv=2025-11-05&sr=b&sig=E/RSkRIBclaXLdNaYdD8zk1yH%2BnEtfl1rr3dnQ3LuUc%3D",
+      "speciality": "oncologist",
+      "disease_area": [
+        "cancer",
+        "diagnostics"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "005",
+      "filename": "005.jpg",
+      "blob_key": "Epocrates/images/005.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/005.jpg?se=2035-12-27T12%3A01%3A40Z&sp=r&sv=2025-11-05&sr=b&sig=bUyfX1u8B35rmF5pWIsyGBcOU/1dnk/TjPYmt0nIhB4%3D",
+      "speciality": "oncologist",
+      "disease_area": [
+        "cancer",
+        "inpatient care"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "101",
+      "filename": "101.jpg",
+      "blob_key": "Epocrates/images/101.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/101.jpg?se=2035-12-27T12%3A01%3A42Z&sp=r&sv=2025-11-05&sr=b&sig=ozyEU82N9y9MkE9YlA/E0ojPxJiKWM4NvdlCBIBA6bk%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "heart disease",
+        "arrhythmia"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "103",
+      "filename": "103.jpg",
+      "blob_key": "Epocrates/images/103.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/103.jpg?se=2035-12-27T12%3A01%3A44Z&sp=r&sv=2025-11-05&sr=b&sig=iQF56/hlcAa9wMrtE2DoKxQNnZPA7RziS37%2BtUi8wW0%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "heart disease",
+        "cardiac imaging"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "104",
+      "filename": "104.jpg",
+      "blob_key": "Epocrates/images/104.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/104.jpg?se=2035-12-27T12%3A01%3A45Z&sp=r&sv=2025-11-05&sr=b&sig=%2BUxjMqloIPeTlCwRLU1jRu/ZpBvX/Y7YKXY6sCzNZBE%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "heart disease"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "105",
+      "filename": "105.jpg",
+      "blob_key": "Epocrates/images/105.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/105.jpg?se=2035-12-27T12%3A01%3A47Z&sp=r&sv=2025-11-05&sr=b&sig=Ki/EbxH1GhkyRU94tB8yb/PAfZwPk/4lV6HPU8Vohs4%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "hypertension"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "201",
+      "filename": "201.jpg",
+      "blob_key": "Epocrates/images/201.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/201.jpg?se=2035-12-27T12%3A01%3A48Z&sp=r&sv=2025-11-05&sr=b&sig=O1Sl8r/tOKKiWQsNimH3LIA3GUToj1dZLI2CGnd2gyU%3D",
+      "speciality": "pediatrician",
+      "disease_area": [
+        "child health",
+        "general pediatrics"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "202",
+      "filename": "202.jpg",
+      "blob_key": "Epocrates/images/202.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/202.jpg?se=2035-12-27T12%3A01%3A50Z&sp=r&sv=2025-11-05&sr=b&sig=tZTu7s/ULc9s%2Bpw3s80R34ZT%2B3m8jTqHHh18m%2BBsRe4%3D",
+      "speciality": "pediatrician",
+      "disease_area": [
+        "immunization",
+        "infection prevention"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "203",
+      "filename": "203.jpg",
+      "blob_key": "Epocrates/images/203.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/203.jpg?se=2035-12-27T12%3A01%3A51Z&sp=r&sv=2025-11-05&sr=b&sig=kJ8p2cvZHryp84LR9GyHhjTRmxe%2BbA6M9KdQDilk/eM%3D",
+      "speciality": "pediatrician",
+      "disease_area": [
+        "child health",
+        "parent counseling"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "204",
+      "filename": "204.jpg",
+      "blob_key": "Epocrates/images/204.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/204.jpg?se=2035-12-27T12%3A01%3A53Z&sp=r&sv=2025-11-05&sr=b&sig=ZbYGYQtJyDGx9D/3oBXw52IZ%2BpEw7DVBMjfylxhdlbU%3D",
+      "speciality": "pediatrician",
+      "disease_area": [
+        "child health",
+        "inpatient care"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "205",
+      "filename": "205.jpg",
+      "blob_key": "Epocrates/images/205.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/205.jpg?se=2035-12-27T12%3A01%3A55Z&sp=r&sv=2025-11-05&sr=b&sig=qbkxYvle7tVHkXGKdZ8AZ6LjusCQgmgQLySJag1YugA%3D",
+      "speciality": "pediatrician",
+      "disease_area": [
+        "development",
+        "child health"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "301",
+      "filename": "301.jpg",
+      "blob_key": "Epocrates/images/301.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/301.jpg?se=2035-12-27T12%3A01%3A56Z&sp=r&sv=2025-11-05&sr=b&sig=yPo4tSKvWhs2GKuQxUx%2By7z4jTBqFNiiLL/72nv5m24%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "pharmacy",
+        "medication"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "303",
+      "filename": "303.jpg",
+      "blob_key": "Epocrates/images/303.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/303.jpg?se=2035-12-27T12%3A01%3A58Z&sp=r&sv=2025-11-05&sr=b&sig=gvjqHUs5Busj/eYe2oTaYPrVL69OjTj8wTNbiNrz6BY%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "pharmacy",
+        "medication"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "304",
+      "filename": "304.JPG",
+      "blob_key": "Epocrates/images/304.JPG",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/304.JPG?se=2035-12-27T12%3A02%3A01Z&sp=r&sv=2025-11-05&sr=b&sig=b3MIBiD4%2BE%2BLNkuf0KNfLpnNup2IzD%2Bll0ZJqhc2ZAc%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "pharmacy",
+        "inventory"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "305",
+      "filename": "305.jpg",
+      "blob_key": "Epocrates/images/305.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/305.jpg?se=2035-12-27T12%3A02%3A03Z&sp=r&sv=2025-11-05&sr=b&sig=sI65XAz3ewSF5yqkHzJuJSC6/imtW2szZ1a%2BAAv54y4%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "pharmacy",
+        "compounding"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "402",
+      "filename": "402.jpg",
+      "blob_key": "Epocrates/images/402.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/402.jpg?se=2035-12-27T12%3A02%3A04Z&sp=r&sv=2025-11-05&sr=b&sig=M5V2RaJldXDdXd4eMjZyzSAITTEI1nMDOyBkK0LgJAE%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "infectious diseases",
+        "biosafety"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "403",
+      "filename": "403.jpg",
+      "blob_key": "Epocrates/images/403.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/403.jpg?se=2035-12-27T12%3A02%3A06Z&sp=r&sv=2025-11-05&sr=b&sig=kXGVG0QBQjYXnha4akD2PmWC37MzSJQGk%2BLJUH%2BUVZY%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "infectious diseases",
+        "covid"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "404",
+      "filename": "404.jpg",
+      "blob_key": "Epocrates/images/404.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/404.jpg?se=2035-12-27T12%3A02%3A07Z&sp=r&sv=2025-11-05&sr=b&sig=Pt5K4tLZEu0yRX7RZS/30%2BcDaJjwPVDhZSmd35x6Fek%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "infectious diseases",
+        "bacteria"
+      ],
+      "mongodb_updated": true
+    },
+    {
+      "id": "405",
+      "filename": "405.jpg",
+      "blob_key": "Epocrates/images/405.jpg",
+      "azure_url": "https://dataepocrates.blob.core.windows.net/epocratesfiles/Epocrates/images/405.jpg?se=2035-12-27T12%3A02%3A09Z&sp=r&sv=2025-11-05&sr=b&sig=aNz9IP7qV8qEmsKXKraocFPQkU3l0XQ/39Eh2uzyn6A%3D",
+      "speciality": "general physician",
+      "disease_area": [
+        "infectious diseases",
+        "prevention"
+      ],
+      "mongodb_updated": true
+    }
+  ],
+  "failed": [
+    {
+      "id": "004",
+      "filename": "004.png",
+      "error": "File not found"
+    },
+    {
+      "id": "102",
+      "filename": "102.png",
+      "error": "File not found"
+    },
+    {
+      "id": "302",
+      "filename": "302.png",
+      "error": "File not found"
+    },
+    {
+      "id": "401",
+      "filename": "401.png",
+      "error": "File not found"
+    }
+  ],
+  "timestamp": "2025-12-29T12:02:09.259276"
+}
